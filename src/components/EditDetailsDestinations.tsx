@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, useRef, type FormEvent } from "react";
 import { Pencil, LuggageIcon } from "lucide-react";
 
 import {
@@ -38,7 +38,7 @@ const categories = [
 
 interface Destination {
   _id: string;
-  destinationName: string;
+  name: string;
   country: string;
   category: string;
   price: number;
@@ -63,76 +63,88 @@ function EditDetailsDestinations({
   );
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (
-    event: FormEvent<HTMLFormElement>
-  ) => {
-    event.preventDefault();
+  const formRef = useRef<HTMLFormElement>(null);
 
-    const formData = new FormData(event.currentTarget);
 
-    const formValues = Object.fromEntries(
-      formData.entries()
+const handleSubmit = async (
+  event: FormEvent<HTMLFormElement>
+) => {
+  event.preventDefault();
+
+  const { _id, ...destinationData } = destination;
+
+  const formData = new FormData(event.currentTarget);
+
+  const formValues = Object.fromEntries(
+    formData.entries()
+  );
+
+  const updatedData: Record<string, string | number> = {};
+
+  Object.entries(formValues).forEach(([key, value]) => {
+    const oldValue =
+      destinationData[key as keyof typeof destinationData];
+
+    if (String(value) !== String(oldValue ?? "")) {
+      updatedData[key] =
+        key === "price" ? Number(value) : String(value);
+    }
+  });
+
+  if (category !== destination.category) {
+    updatedData.category = category;
+  }
+
+  if (Object.keys(updatedData).length === 0) {
+    console.log("No changes found");
+    return;
+  }
+
+  try {
+    setLoading(true);
+
+    const res = await fetch(
+      `http://localhost:5000/destination/${_id}`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(updatedData),
+      }
     );
 
-    const updatedData: Record<string, string | number> = {};
+    const result = await res.json();
 
-    Object.entries(formValues).forEach(([key, value]) => {
-      const oldValue = destination[key as keyof Destination];
-
-      if (String(value) !== String(oldValue ?? "")) {
-        updatedData[key] =
-          key === "price" ? Number(value) : String(value);
-      }
-    });
-
-    if (category !== destination.category) {
-      updatedData.category = category;
-    }
-
-    if (Object.keys(updatedData).length === 0) {
-      console.log("No changes found");
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      const res = await fetch(
-        `http://localhost:5000/destination/${destination._id}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-         body: JSON.stringify(updatedData),
-        }
+    if (!res.ok) {
+      throw new Error(
+        result.message || "Failed to update destination"
       );
-
-      const result = await res.json();
-
-      if (!res.ok) {
-        throw new Error(
-          result.message || "Failed to update destination"
-        );
-      }
-
-      console.log("Updated successfully:", result);
-
-      onUpdated?.();
-      setOpen(false);
-
-    } catch (error) {
-      console.error("Error updating destination:", error);
-    } finally {
-      setLoading(false);
     }
-  };
+
+    console.log("Updated successfully:", result);
+
+    onUpdated?.();
+    setOpen(false);
+
+  } catch (error) {
+    console.error("Error updating destination:", error);
+  } finally {
+    setLoading(false);
+  }
+}
+
+
 
   const handleOpenChange = (value: boolean) => {
     setOpen(value);
 
     if (value) {
       setCategory(destination.category || "Beach");
+
+      requestAnimationFrame(() => {
+        formRef.current?.reset();
+      });
     }
   };
 
@@ -153,6 +165,7 @@ function EditDetailsDestinations({
         </DialogHeader>
 
         <form
+          ref={formRef}
           onSubmit={handleSubmit}
           className="mx-auto max-h-[75vh] w-full max-w-xl space-y-4 overflow-y-auto p-1"
         >
@@ -162,12 +175,12 @@ function EditDetailsDestinations({
             </Label>
 
             <Input
-              id="destination-name"
-              name="destinationName"
-              defaultValue={destination.destinationName}
-              placeholder="Bali Paradise"
-              className="h-9 rounded-lg bg-[#f9fafb]"
-            />
+             id="name"
+             name="name"
+             defaultValue={destination?.name}
+            placeholder="Bali Paradise"
+          required
+           />
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -179,6 +192,7 @@ function EditDetailsDestinations({
                 name="country"
                 defaultValue={destination.country}
                 placeholder="Indonesia"
+                required
                 className="h-9 rounded-lg bg-[#f9fafb]"
               />
             </div>
@@ -219,6 +233,7 @@ function EditDetailsDestinations({
                 min="0"
                 defaultValue={destination.price}
                 placeholder="e.g., 1299"
+                required
                 className="h-9 rounded-lg bg-[#f9fafb]"
               />
             </div>
@@ -231,6 +246,7 @@ function EditDetailsDestinations({
                 name="duration"
                 defaultValue={destination.duration}
                 placeholder="e.g., 7 Days/6 Nights"
+                required
                 className="h-9 rounded-lg bg-[#f9fafb]"
               />
             </div>
@@ -246,6 +262,7 @@ function EditDetailsDestinations({
               name="departureDate"
               type="date"
               defaultValue={destination.departureDate?.slice(0, 10)}
+              required
               className="h-9 rounded-lg bg-[#f9fafb]"
             />
           </div>
@@ -259,6 +276,7 @@ function EditDetailsDestinations({
               type="url"
               defaultValue={destination.imageUrl}
               placeholder="https://example.com/image.jpg"
+              required
               className="h-9 rounded-lg bg-[#f9fafb]"
             />
           </div>
@@ -271,6 +289,7 @@ function EditDetailsDestinations({
               name="description"
               defaultValue={destination.description}
               placeholder="Describe the travel experience..."
+              required
               className="min-h-24 rounded-lg bg-[#f9fafb]"
             />
           </div>
