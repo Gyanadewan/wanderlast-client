@@ -17,6 +17,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import EditDetailsDestinations from "@/components/EditDetailsDestinations";
+import DeleteDestinationsDailog from "@/components/DeleteDestinationsDailog";
 
 type Destination = {
   _id: string;
@@ -77,12 +78,7 @@ async function DestinationsDetailsPage({
           <div className="flex items-center gap-2">
             <EditDetailsDestinations  destination={destination}/>
 
-            <Button
-              size="sm"
-              className="border-destructive/40 bg-white text-destructive hover:bg-destructive/5 hover:text-destructive"
-            >
-              Cancel
-            </Button>
+            <DeleteDestinationsDailog id={id}></DeleteDestinationsDailog>
           </div>
         </div>
 

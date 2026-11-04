@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useState, useRef, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { Pencil, LuggageIcon } from "lucide-react";
 
 import {
@@ -26,6 +25,8 @@ import {
 } from "@/components/ui/select";
 
 import { Textarea } from "@/components/ui/textarea";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:5000";
 
 const categories = [
   "Beach",
@@ -53,98 +54,82 @@ interface Props {
   onUpdated?: () => void;
 }
 
-function EditDetailsDestinations({
-  destination,
-  onUpdated,
-}: Props) {
+function EditDetailsDestinations({ destination, onUpdated }: Props) {
   const [open, setOpen] = useState(false);
-  const [category, setCategory] = useState(
+  const [category, setCategory] = useState<string>(
     destination.category || "Beach"
   );
   const [loading, setLoading] = useState(false);
 
-  const formRef = useRef<HTMLFormElement>(null);
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
 
+    const { _id, ...destinationData } = destination;
 
-const handleSubmit = async (
-  event: FormEvent<HTMLFormElement>
-) => {
-  event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const formValues = Object.fromEntries(formData.entries());
 
-  const { _id, ...destinationData } = destination;
+    const updatedData: Record<string, string | number> = {};
 
-  const formData = new FormData(event.currentTarget);
+    Object.entries(formValues).forEach(([key, value]) => {
+      const oldValue = destinationData[key as keyof typeof destinationData];
 
-  const formValues = Object.fromEntries(
-    formData.entries()
-  );
+      // departureDate backend e full ISO string hote pare, tai date part ta compare kora hocche
+      const normalizedOld =
+        key === "departureDate"
+          ? String(oldValue ?? "").slice(0, 10)
+          : String(oldValue ?? "");
 
-  const updatedData: Record<string, string | number> = {};
+      if (String(value) !== normalizedOld) {
+        updatedData[key] = key === "price" ? Number(value) : String(value);
+      }
+    });
 
-  Object.entries(formValues).forEach(([key, value]) => {
-    const oldValue =
-      destinationData[key as keyof typeof destinationData];
-
-    if (String(value) !== String(oldValue ?? "")) {
-      updatedData[key] =
-        key === "price" ? Number(value) : String(value);
+    if (category !== destination.category) {
+      updatedData.category = category;
     }
-  });
 
-  if (category !== destination.category) {
-    updatedData.category = category;
-  }
+    if (Object.keys(updatedData).length === 0) {
+      console.log("No changes found");
+      setOpen(false);
+      return;
+    }
 
-  if (Object.keys(updatedData).length === 0) {
-    console.log("No changes found");
-    return;
-  }
+    try {
+      setLoading(true);
 
-  try {
-    setLoading(true);
-
-    const res = await fetch(
-      `http://localhost:5000/destination/${_id}`,
-      {
+      const res = await fetch(`${API_URL}/destination/${_id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(updatedData),
+      });
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        throw new Error(result.message || "Failed to update destination");
       }
-    );
 
-    const result = await res.json();
+      console.log("Updated successfully:", result);
 
-    if (!res.ok) {
-      throw new Error(
-        result.message || "Failed to update destination"
-      );
+      onUpdated?.();
+      setOpen(false);
+    } catch (error) {
+      console.error("Error updating destination:", error);
+    } finally {
+      setLoading(false);
     }
-
-    console.log("Updated successfully:", result);
-
-    onUpdated?.();
-    setOpen(false);
-
-  } catch (error) {
-    console.error("Error updating destination:", error);
-  } finally {
-    setLoading(false);
-  }
-}
-
-
+  };
 
   const handleOpenChange = (value: boolean) => {
     setOpen(value);
 
+    // Dialog open hole category ke abar original value te reset kora hocche.
+    // Input gulo unmount/mount hoy, tai defaultValue automatically fresh thake.
     if (value) {
       setCategory(destination.category || "Beach");
-
-      requestAnimationFrame(() => {
-        formRef.current?.reset();
-      });
     }
   };
 
@@ -165,22 +150,20 @@ const handleSubmit = async (
         </DialogHeader>
 
         <form
-          ref={formRef}
           onSubmit={handleSubmit}
           className="mx-auto max-h-[75vh] w-full max-w-xl space-y-4 overflow-y-auto p-1"
         >
           <div className="space-y-1.5">
-            <Label htmlFor="destination-name">
-              Destination Name
-            </Label>
+            <Label htmlFor="name">Destination Name</Label>
 
             <Input
-             id="name"
-             name="name"
-             defaultValue={destination?.name}
-            placeholder="Bali Paradise"
-          required
-           />
+              id="name"
+              name="name"
+              defaultValue={destination.name}
+              placeholder="Bali Paradise"
+              required
+              className="h-9 rounded-lg bg-[#f9fafb]"
+            />
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -202,7 +185,9 @@ const handleSubmit = async (
 
               <Select
                 value={category}
-                onValueChange={setCategory}
+                onValueChange={(value) => {
+                  if (value) setCategory(value);
+                }}
               >
                 <SelectTrigger
                   id="category"
@@ -253,9 +238,7 @@ const handleSubmit = async (
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="departure-date">
-              Departure Date
-            </Label>
+            <Label htmlFor="departure-date">Departure Date</Label>
 
             <Input
               id="departure-date"

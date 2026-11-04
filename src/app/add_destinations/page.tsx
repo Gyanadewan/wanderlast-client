@@ -1,7 +1,7 @@
 "use client"
 
 import { LuggageIcon, Trash2Icon } from "lucide-react"
-import { useState } from "react"
+import { useState, type FormEvent } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { redirect } from "next/navigation"
 
 const categories = [
   "Beach",
@@ -25,22 +26,24 @@ const categories = [
 ]
 
 function AddDestinationsPage() {
-  const [category, setCategory] = useState<string | null>("Beach")
-   const handleSubmit = async (event) => {
-     event.preventDefault()
-   const formData = new FormData(event.currentTarget)
-  const data = Object.fromEntries(formData.entries())
+  const [category, setCategory] = useState<string>("Beach")
 
-  data.category = category
-   const res = await fetch ("http://localhost:5000/add-destination",{
-     method: "POST",
-     headers: {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const formData = new FormData(event.currentTarget)
+    const data = Object.fromEntries(formData.entries())
+
+    data.category = category
+    const res = await fetch("http://localhost:5000/add-destination", {
+      method: "POST",
+      headers: {
         "Content-Type": "application/json",
-     },
-     body: JSON.stringify(data)
-   })
-   const result = await res.json()
-   console.log("Backend response:", result);
+      },
+      body: JSON.stringify(data),
+    })
+    const result = await res.json()
+
+    redirect("/destinations")
   }
 
   return (
@@ -77,7 +80,12 @@ function AddDestinationsPage() {
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="category">Category</Label>
-                <Select value={category} onValueChange={setCategory}>
+                <Select
+                  value={category}
+                  onValueChange={(value) => {
+                    if (value) setCategory(value)
+                  }}
+                >
                   <SelectTrigger
                     id="category"
                     className="w-full rounded-lg bg-[#f9fafb] h-9"
