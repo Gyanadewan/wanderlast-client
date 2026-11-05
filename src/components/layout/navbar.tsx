@@ -41,7 +41,7 @@ function Navbar() {
         <a href="#" className="hover:text-foreground">
           Login
         </a>
-        <a href="#" className="hover:text-foreground">
+        <a href="/signUp" className="hover:text-foreground">
           Sign Up
         </a>
       </nav>
